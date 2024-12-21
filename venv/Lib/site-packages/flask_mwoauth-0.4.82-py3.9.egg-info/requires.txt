@@ -1,0 +1,5 @@
+mwoauth
+requests-oauthlib
+Flask
+requests>=2.0.1
+future
