@@ -1,4 +1,4 @@
-#working, but issue displaying images for urls rest is fine, creating a new one for unique header names
+#working, but issue displaying images for urls rest is fine, creating a new one for unique header names which is name.py
 import requests
 from io import BytesIO
 from flask import Flask, request, render_template, send_from_directory

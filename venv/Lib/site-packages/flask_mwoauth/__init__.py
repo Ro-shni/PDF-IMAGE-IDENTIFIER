@@ -1,0 +1,159 @@
+#!/usr/bin/env python
+# MediaWiki OAuth connector for Flask
+#
+# Requires flask-oauthlib
+#
+# (C) 2013 Merlijn van Deen <valhallasw@arctus.nl>
+# Licensed under the MIT License // http://opensource.org/licenses/MIT
+#
+import sys
+from future.utils import iteritems
+from flask import request, session, redirect, url_for, flash, Blueprint
+import mwoauth
+import requests
+from requests.models import Request
+from requests_oauthlib import OAuth1
+
+__version__ = '0.4.82'
+
+
+class MWOAuth(object):
+    def __init__(self,
+                 base_url='https://www.mediawiki.org/w',
+                 clean_url="Deprecated",
+                 default_return_to='index',
+                 consumer_key=None, consumer_secret=None,
+                 return_json=False,
+                 name="Deprecated",
+                 user_agent=None):
+        if consumer_key is None:
+            raise TypeError(
+                "MWOAuth() missing 1 required argument: 'consumer_key'")
+        if consumer_secret is None:
+            raise TypeError(
+                "MWOAuth() missing 1 required argument: 'consumer_secret'")
+        self.consumer_token = mwoauth.ConsumerToken(consumer_key, consumer_secret)
+        self.default_return_to = default_return_to
+        self.return_json = return_json
+        self.script_url = base_url + "/index.php"
+        self.api_url = base_url + "/api.php"
+
+        self.handshaker = mwoauth.Handshaker(self.script_url, self.consumer_token, user_agent=user_agent)
+
+        self.bp = Blueprint('mwoauth', __name__)
+
+        @self.bp.route('/logout')
+        def logout():
+            session['mwoauth_access_token'] = None
+            session['mwoauth_username'] = None
+            if 'next' in request.args:
+                return redirect(request.args['next'])
+            return redirect(url_for(self.default_return_to))
+
+        @self.bp.route('/login')
+        def login():
+            redirect_to, request_token = self.handshaker.initiate()
+            keyed_token_name = _str(request_token.key) + '_request_token'
+            keyed_next_name = _str(request_token.key) + '_next'
+            session[keyed_token_name] = \
+                dict(zip(request_token._fields, request_token))
+
+            if 'next' in request.args:
+                session[keyed_next_name] = request.args.get('next')
+            else:
+                session[keyed_next_name] = self.default_return_to
+
+            return redirect(redirect_to)
+
+        @self.bp.route('/oauth-callback')
+        def oauth_authorized():
+            request_token_key = request.args.get('oauth_token', 'None')
+            keyed_token_name = _str(request_token_key) + '_request_token'
+            keyed_next_name = _str(request_token_key) + '_next'
+
+            if keyed_token_name not in session:
+                raise Exception("OAuth callback failed.  " +
+                                "Can't find keyed token in session.  " +
+                                "Are cookies disabled?")
+
+            access_token = self.handshaker.complete(
+                mwoauth.RequestToken(**session[keyed_token_name]),
+                request.query_string)
+            session['mwoauth_access_token'] = \
+                dict(zip(access_token._fields, access_token))
+
+            next_url = url_for(session[keyed_next_name])
+            del session[keyed_next_name]
+            del session[keyed_token_name]
+
+            username = self.get_current_user(False)
+            flash(u'You were signed in, %s!' % username)
+
+            return redirect(next_url)
+
+    def request(self, api_query, url=None):
+        """
+        e.g. {'action': 'query', 'meta': 'userinfo'}. format=json not required
+        function returns a python dict that resembles the api's json response
+        """
+        api_query['format'] = 'json'
+        if url is not None:
+            api_url = url + "/api.php"
+        else:
+            api_url = self.api_url
+
+        size = sum([sys.getsizeof(v) for k, v in iteritems(api_query)])
+
+        auth1 = OAuth1(
+            self.consumer_token.key,
+            client_secret=self.consumer_token.secret,
+            resource_owner_key=session['mwoauth_access_token']['key'],
+            resource_owner_secret=session['mwoauth_access_token']['secret'])
+        if self.return_json:
+            return requests.post(api_url, data=api_query, auth=auth1).json()
+        else:
+            return requests.post(api_url, data=api_query, auth=auth1).text
+
+    def get_current_user(self, cached=True):
+        if cached:
+            return session.get('mwoauth_username')
+
+        # Get user info
+        identity = self.handshaker.identify(
+            mwoauth.AccessToken(**session['mwoauth_access_token']))
+
+        # Store user info in session
+        session['mwoauth_username'] = identity['username']
+
+        return session['mwoauth_username']
+    
+    def get_user_identity(self, cached=True):
+        if cached and session.get('mwoauth_identity'):
+            return session.get('mwoauth_identity')
+        
+        # Get user info
+        identity = self.handshaker.identify(
+            mwoauth.AccessToken(**session['mwoauth_access_token']))
+        
+        session['mwoauth_identity'] = identity
+        return identity
+    
+    def get_user_identity_from_token(self, access_token_key, access_token_secret):
+        return self.handshaker.identify(
+            mwoauth.AccessToken(key=access_token_key, secret=access_token_secret))
+
+
+def _str(val):
+    """
+    Ensures that the val is the default str() type for python2 or 3
+    """
+    if str == bytes:
+        if isinstance(val, str):
+            return val
+        else:
+            return str(val)
+    else:
+        if isinstance(val, str):
+            return val
+        else:
+            return str(val, 'ascii')

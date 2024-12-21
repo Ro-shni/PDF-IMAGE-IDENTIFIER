@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results</title>
+</head>
+<body>
+    <h1>PDF Page Classification Results</h1>
+    <h2>Pages with Only Images:</h2>
+    <p>{{ image_pages if image_pages else "None" }}</p>
+
+    <h2>Pages with Images and Text:</h2>
+    <p>{{ text_image_pages if text_image_pages else "None" }}</p>
+</body>
+</html>

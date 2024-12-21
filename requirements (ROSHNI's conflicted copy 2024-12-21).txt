@@ -1,0 +1,7 @@
+Flask
+PyMuPDF
+numpy
+opencv-python
+mwoauth==0.3.3
+flask-mwoauth
+pyyaml
