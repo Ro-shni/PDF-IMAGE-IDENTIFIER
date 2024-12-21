@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Image Extractor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+        }
+        h1 {
+            font-size: 2rem;
+            color: #333;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background-color: white;
+            padding: 30px;
+            padding-top: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: auto; /* To allow scrolling when content overflows */
+        }
+        .page-images {
+            margin-bottom: 30px;
+        }
+        .page-images h2 {
+            font-size: 1.3rem;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        .image-list-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .image-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .image-list img {
+            width: 300px;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .image-list img:hover {
+            transform: scale(1.05);
+        }
+        .back-btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            text-align: center;
+            margin-top: 30px;
+            transition: background-color 0.3s ease;
+        }
+        .back-btn:hover {
+            background-color: #45a049;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            .image-list {
+                flex-direction: column;
+                align-items: center;
+            }
+            .image-list img {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Extracted Images from PDF</h1>
+
+        <!-- Pages with Only Images Section -->
+        <div class="page-images">
+            {% if image_pages %}
+                <h2>Pages with Only Images</h2>
+                <div class="image-list-container">
+                    <div class="image-list">
+                        {% for page in image_pages %}
+                            <div class="page">
+                                <h3>Page {{ page }}</h3>
+                                {% if cropped_images_paths[page] %}
+                                    <div class="image-list">
+                                        {% for image in cropped_images_paths[page] %}
+                                            <img src="{{ image }}" alt="Cropped Image">
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p>No images found on this page.</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <p>No pages with only images were found.</p>
+            {% endif %}
+        </div>
+
+        <!-- Pages with Text and Images Section -->
+        <div class="page-images">
+            {% if text_image_pages %}
+                <h2>Pages with Text and Images</h2>
+                <div class="image-list-container">
+                    <div class="image-list">
+                        {% for page in text_image_pages %}
+                            <div class="page">
+                                <h3>Page {{ page }}</h3>
+                                {% if cropped_images_paths[page] %}
+                                    <div class="image-list">
+                                        {% for image in cropped_images_paths[page] %}
+                                            <img src="{{ image }}" alt="Cropped Image">
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p>No images found on this page.</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <p>No pages with both text and images were found.</p>
+            {% endif %}
+        </div>
+
+        <!-- Back to Upload Button -->
+        <a href="/" class="back-btn">Back to Upload</a>
+    </div>
+
+</body>
+</html>
+
+
+
