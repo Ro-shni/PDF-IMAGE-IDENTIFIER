@@ -235,9 +235,28 @@ def fetch_pdf_with_user_agent(pdf_url):
 
 
 from requests_oauthlib import OAuth1
+from datetime import datetime
+
+def fetch_metadata(title):
+    url = f"https://commons.wikimedia.org/w/api.php"
+    params = {
+        "action": "query",
+        "format": "json",
+        "titles": title,
+        "prop": "content",
+        "viprop": "url|user|comment"
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+    pages = data.get("query", {}).get("pages", {})
+    for page_id, page_data in pages.items():
+        if "content" in page_data:
+            return page_data["content"][0]
+    return None
 
 def upload_to_commons(image_path, filename, auth_ses=None):
     """Uploads an image to Wikimedia Commons."""
+
     # Step 1: Get the upload token if not provided
     if auth_ses is not None:
         endpoint_url = "https://commons.wikimedia.org/w/api.php"
@@ -263,14 +282,13 @@ def upload_to_commons(image_path, filename, auth_ses=None):
 
         print(f"Retrieved CSRF token: {csrftoken}")
 
-
         # Step 2: Prepare the file for upload
         upload_params = {
             'action': 'upload',
             'filename': filename,
             "format": "json",
             "token": csrftoken,
-            "ignorewarnings": 1 
+            "ignorewarnings": 1,
         }
 
         # Step 3: Perform the upload request with the OAuth authentication
@@ -280,16 +298,55 @@ def upload_to_commons(image_path, filename, auth_ses=None):
         }
         upload_response = requests.post(endpoint_url, data=upload_params, files=file, auth=auth_ses)
         print(upload_response.status_code)
-        #print(upload_response.json())
         # Check if the upload request was successful
         if upload_response.status_code != 200:
             return f"Error uploading file: {upload_response.status_code} - {upload_response.text}"
 
-        print("Reacched here")
+        print("Reached here")
         # Try to parse the JSON response
-        print(upload_response.json())
-            # Check if the response contains a success message
+        upload_response_json = upload_response.json()
+        print(upload_response_json)
 
+        # Fetch metadata for the uploaded file
+        title = upload_response_json.get("filename", filename)
+        metadata = fetch_metadata(title)
+        if metadata:
+            author = metadata["user"]
+            comment = metadata["comment"]
+            file_url = metadata["url"]
+        else:
+            author = "Unknown"
+            comment = ""
+            file_url = image_path
+
+        current_date = datetime.now().strftime('%Y-%m-%d')
+
+        # Construct the metadata text
+        text_details = f"""=={{int:filedesc}}==
+                    {{{{Information
+                    |description={comment if comment else ''}
+                    |date={current_date}
+                    |source={{own}}
+                    |author=[[User:{author}|{author}]]
+                    }}}}
+                    =={{int:license-header}}==
+                    {{{{self|cc-by-sa-4.0}}}}
+                    [[Category:VideoCutTool]]
+                    {{{{Extracted from|File:{title}}}}}
+                    """
+
+        # You can now use text_details as needed, for example, to save metadata or display it
+        print(text_details)
+
+        # Return the metadata in the response
+        return {
+            "description": comment,
+            "author": author,
+            "source": "own",
+            "date": current_date,
+            "file_url": file_url,
+            "text_details": text_details
+        }
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
