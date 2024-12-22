@@ -204,6 +204,21 @@ def process_pdf_and_extract_images(pdf_data, pdf_url, zoom_x=2.0, zoom_y=2.0, mi
             cropped_images = extract_large_contours(img, contours, min_contour_area=image_area_threshold)
             cropped_images_paths[page_num + 1] = display_extracted_images(cropped_images, page_num, pdf_url)
 
+            # Upload each cropped image for "Image+Text" pages as well
+            for i, cropped in enumerate(cropped_images):
+                # Construct file name for the image
+                file_name = f"{pdf_url.split('/')[-1]}_page{page_num+1}_image{i+1}.png"
+                file_path = os.path.join('static', file_name)
+                
+                # Save image to static directory first
+                plt.imsave(file_path, cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
+                
+                # Now upload to Wikimedia Commons for Image+Text
+                auth_ses = get_authenticated_token()  # Get the OAuth token using the authenticated session
+                if auth_ses:
+                    upload_to_commons(file_path, file_name, auth_ses)
+            
+
     return image_pages, text_image_pages, cropped_images_paths
 
 
@@ -234,6 +249,7 @@ def upload_to_commons(image_path, filename, auth_ses=None):
         token_response = requests.get(endpoint_url, params=crsf_params, auth=auth_ses)
 
         # Check if the response is valid
+        print(token_response.json())   
         if token_response.status_code != 200:
             return f"Error retrieving token: {token_response.status_code} - {token_response.text}"
 
@@ -252,9 +268,9 @@ def upload_to_commons(image_path, filename, auth_ses=None):
         upload_params = {
             'action': 'upload',
             'filename': filename,
-            'token': csrftoken,
-            'description': 'Uploaded via API', 
-            'source': 'Own work', 
+            "format": "json",
+            "token": csrftoken,
+            "ignorewarnings": 1 
         }
 
         # Step 3: Perform the upload request with the OAuth authentication
@@ -263,19 +279,16 @@ def upload_to_commons(image_path, filename, auth_ses=None):
             'file': open(image_path, 'rb')
         }
         upload_response = requests.post(endpoint_url, data=upload_params, files=file, auth=auth_ses)
-
+        print(upload_response.status_code)
+        #print(upload_response.json())
         # Check if the upload request was successful
         if upload_response.status_code != 200:
             return f"Error uploading file: {upload_response.status_code} - {upload_response.text}"
 
+        print("Reacched here")
         # Try to parse the JSON response
-        try:
-            response_json = upload_response.json()
+        print(upload_response.json())
             # Check if the response contains a success message
-            print(response_json)
-        except requests.exceptions.JSONDecodeError:
-            return f"Failed to decode JSON response: {upload_response.text}"
-
 
 
 @app.route('/', methods=['GET', 'POST'])
