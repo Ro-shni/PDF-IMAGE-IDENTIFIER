@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Select Images</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Select Images to Upload</h1>
+    <form action="/upload_selected_images" method="post">
+        <div class="image-container">
+            {% for image_path in image_paths %}
+                <div class="image-box">
+                    <!-- Use the relative path (without /static/) -->
+                    <p>Image Path: {{ url_for('static', filename=image_path) }}</p>
+                    <img src="{{ url_for('static', filename=image_path) }}" alt="Image" style="width: 200px;">
+                    <input type="checkbox" name="selected_images" value="{{ image_path }}"> Select
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit">Upload Selected Images</button>
+    </form>
+    
+</body>
+</html>

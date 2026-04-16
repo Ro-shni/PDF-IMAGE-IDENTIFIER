@@ -66,8 +66,6 @@ def get_authenticated_token():
         print("Authentication failed or token not found.")
         return None
 
-
-
 def load_pdf_as_images(pdf_data, zoom_x=2.0, zoom_y=2.0):
     """Load a PDF file and convert each page into an image."""
     if isinstance(pdf_data, BytesIO):
@@ -163,7 +161,7 @@ def display_extracted_images(cropped_images, page_num, pdf_url):
         
         # Save the image using the updated filename
         plt.imsave(cropped_image_full_path, cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
-        cropped_image_paths.append(f"/static/uploads/{cropped_image_path}")  # Use relative path here
+        cropped_image_paths.append(f"{cropped_image_path}")  # Use relative path here
     
     return cropped_image_paths
 
@@ -185,144 +183,205 @@ def process_pdf_and_extract_images(pdf_data, pdf_url, zoom_x=2.0, zoom_y=2.0, mi
             cropped_images = extract_large_contours(img, contours, min_contour_area=image_area_threshold)
             cropped_images_paths[page_num + 1] = display_extracted_images(cropped_images, page_num, pdf_url)
             
-            # After processing, upload each image to Wikimedia Commons
+            # Save each cropped image for "Image" pages
             for i, cropped in enumerate(cropped_images):
                 # Construct file name for the image
-                file_name = f"{pdf_url.split('/')[-1]}_page{page_num+1}_image{i+1}.png"
-                file_path = os.path.join('static', file_name)
+                file_name = f"{os.path.basename(pdf_url).replace('.pdf', '')}_page{page_num+1}_image{i+1}.png"
+                file_path = os.path.join('static', 'uploads', file_name)
                 
-                # Save image to static directory first
+                # Ensure the directory exists
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                # Save image to static directory
                 plt.imsave(file_path, cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
-                
-                # Now upload to Wikimedia Commons
-                auth_ses = get_authenticated_token()  # Get the OAuth token using the authenticated session
-                if auth_ses:
-                    upload_to_commons(file_path, file_name, auth_ses)
 
         elif classification == "Image+Text":
             text_image_pages.append(page_num + 1)
             cropped_images = extract_large_contours(img, contours, min_contour_area=image_area_threshold)
             cropped_images_paths[page_num + 1] = display_extracted_images(cropped_images, page_num, pdf_url)
 
-            # Upload each cropped image for "Image+Text" pages as well
+            # Save each cropped image for "Image+Text" pages
             for i, cropped in enumerate(cropped_images):
                 # Construct file name for the image
-                file_name = f"{pdf_url.split('/')[-1]}_page{page_num+1}_image{i+1}.png"
-                file_path = os.path.join('static', file_name)
+                file_name = f"{os.path.basename(pdf_url).replace('.pdf', '')}_page{page_num+1}_image{i+1}.png"
+                file_path = os.path.join('static', 'uploads', file_name)
                 
-                # Save image to static directory first
+                # Ensure the directory exists
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                # Save image to static directory
                 plt.imsave(file_path, cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
-                
-                # Now upload to Wikimedia Commons for Image+Text
-                auth_ses = get_authenticated_token()  # Get the OAuth token using the authenticated session
-                if auth_ses:
-                    upload_to_commons(file_path, file_name, auth_ses)
-            
 
     return image_pages, text_image_pages, cropped_images_paths
-
 
 
 def fetch_pdf_with_user_agent(pdf_url):
     """Fetch the PDF file using a custom User-Agent."""
     headers = {'User-Agent': 'wiki.py/1.0 (roshninekkanti@gmail.com) Python-requests'}
-    response = requests.get(pdf_url, headers=headers)
+    response = requests.get(pdf_url, headers=headers,allow_redirects=True)
     if response.status_code == 200:
-
         return BytesIO(response.content)
     else:
         response.raise_for_status()
 
 
 from requests_oauthlib import OAuth1
+from datetime import datetime
+import requests
+import requests
+import urllib.parse
+import re
+from datetime import datetime
+
+def fetch_metadata(title):
+    """Fetch metadata from Wikimedia Commons for a given file title."""
+    url = "https://commons.wikimedia.org/w/api.php"
+
+    params = {
+        "action": "query",
+        "format": "json",
+        "titles": title,
+        "prop": "imageinfo",
+        "iiprop": "timestamp|user|comment|url|metadata",
+    }
+
+    response = requests.get(url, params=params, verify=True)
+    data = response.json()
+
+    pages = data.get("query", {}).get("pages", {})
+    for page_id, page_data in pages.items():
+        if "imageinfo" in page_data:
+            info = page_data["imageinfo"][0]
+            return {
+                "author": info.get("user", "Unknown"),
+                "timestamp": info.get("timestamp", ""),
+                "comment": info.get("comment", ""),
+                "source": info.get("url", ""),
+            }
+
+    return None  # Return None if metadata isn't found
 
 def upload_to_commons(image_path, filename, auth_ses=None):
-    """Uploads an image to Wikimedia Commons."""
-    # Step 1: Get the upload token if not provided
+    """Uploads an image to Wikimedia Commons with correct metadata."""
     if auth_ses is not None:
         endpoint_url = "https://commons.wikimedia.org/w/api.php"
-        crsf_params = {
+
+        # Step 1: Get CSRF token
+        token_response = requests.get(endpoint_url, params={
             'action': 'query',
             'meta': 'tokens',
             'format': 'json'
-        }
-        token_response = requests.get(endpoint_url, params=crsf_params, auth=auth_ses)
+        }, auth=auth_ses, verify=True)
 
-        # Check if the response is valid
-        print(token_response.json())   
         if token_response.status_code != 200:
             return f"Error retrieving token: {token_response.status_code} - {token_response.text}"
 
-        try:
-            token_data = token_response.json()
-        except requests.exceptions.JSONDecodeError:
-            return f"Failed to decode JSON response: {token_response.text}"
-
-        # Extract the upload token from the response
+        token_data = token_response.json()
         csrftoken = token_data['query']['tokens']['csrftoken']
 
-        print(f"Retrieved CSRF token: {csrftoken}")
+        # Step 2: Clean filename (fix illegal characters)
+        cleaned_filename = urllib.parse.unquote(filename)
+        cleaned_filename = re.sub(r'[^\w.-]', '_', cleaned_filename)
 
+        # Step 3: Fetch existing metadata
+        metadata = fetch_metadata(filename)
+        if metadata:
+            author = metadata["author"]
+            source = metadata["source"]
+            description = metadata["comment"] if metadata["comment"] else "Uploaded file"
+        else:
+            author = "Unknown"
+            source = "Unknown"
+            description = "Uploaded file"
 
-        # Step 2: Prepare the file for upload
+        # Generate metadata text
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        text_details = f"""=={{int:filedesc}}==
+{{{{Information
+|description={description}
+|date={current_date}
+|source={source}
+|author=[[User:{author}|{author}]]
+}}}}
+=={{int:license-header}}==
+{{{{self|cc-by-sa-4.0}}}}
+[[Category:Uploaded PDFs]]
+{{{{Extracted from|File:{cleaned_filename}}}}}
+"""
+
+        # Step 4: Upload file
         upload_params = {
             'action': 'upload',
-            'filename': filename,
+            'filename': cleaned_filename,
             "format": "json",
             "token": csrftoken,
-            "ignorewarnings": 1 
+            "text": text_details,  # Attach correct metadata
+            "ignorewarnings": 1,
         }
 
-        # Step 3: Perform the upload request with the OAuth authentication
-        # Read the file for POST request
-        file = {
-            'file': open(image_path, 'rb')
-        }
-        upload_response = requests.post(endpoint_url, data=upload_params, files=file, auth=auth_ses)
-        print(upload_response.status_code)
-        #print(upload_response.json())
-        # Check if the upload request was successful
+        file = {'file': open(image_path, 'rb')}
+        upload_response = requests.post(endpoint_url, data=upload_params, files=file, auth=auth_ses, verify=True)
+
         if upload_response.status_code != 200:
             return f"Error uploading file: {upload_response.status_code} - {upload_response.text}"
 
-        print("Reacched here")
-        # Try to parse the JSON response
-        print(upload_response.json())
-            # Check if the response contains a success message
-
+        return upload_response.json()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         file = request.files.get('file')
-        url = request.form.get('url')  # Assuming you have a form field for URL
+        url = request.form.get('url')
 
         if file and allowed_file(file.filename):
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(file_path)
-            # Process the uploaded PDF from the file path
             image_pages, text_image_pages, cropped_images_paths = process_pdf_and_extract_images(file_path, pdf_url=file_path)
 
-            return render_template('r1.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths)
+            return render_template('review.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths)
 
         elif url:
             try:
                 pdf_data = fetch_pdf_with_user_agent(url)
-
-                # Process the PDF from the URL
                 image_pages, text_image_pages, cropped_images_paths = process_pdf_and_extract_images(pdf_data, pdf_url=url)
 
-                return render_template('r1.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths)
+                return render_template('review.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths)
 
             except requests.exceptions.RequestException as e:
                 return f"Error fetching the PDF: {e}", 400
 
-    return render_template('u1.html', user=getUser())
+    return render_template('index.html')
+
+@app.route('/upload_selected_images', methods=['POST'])
+def upload_selected_images():
+    selected_images = request.form.getlist('selected_images')
+    if not selected_images:
+        return "No images selected", 400
+
+    auth_ses = get_authenticated_token()
+    if not auth_ses:
+        return "Authentication failed", 400
+
+    upload_results = []
+    base_dir = os.path.join(app.root_path, 'static/uploads')
+    for image_path in selected_images:
+        # Ensure correct absolute path
+        absolute_image_path = os.path.join(base_dir, os.path.basename(image_path))
+        filename = os.path.basename(absolute_image_path)
+
+        # Check if the file exists before uploading
+        if not os.path.exists(absolute_image_path):
+            return f"File not found: {absolute_image_path}", 404
+
+        result = upload_to_commons(absolute_image_path, filename, auth_ses)
+        upload_results.append(result)
+
+    return render_template('upload_results.html', upload_results=upload_results)
+
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 
 def getUser():
     if MW_OAUTH.get_current_user(True) is not None:
@@ -330,5 +389,22 @@ def getUser():
     else:
         return None
 
+@app.route('/upload_metadata', methods=['POST'])
+def upload_metadata():
+    # Receive the title from the request's JSON payload
+    data = request.get_json()
+    title = data.get('title', '')  # Assuming 'title' is passed in the request
+    # Check if the title is valid
+    if not title:
+        return jsonify({"error": "No title provided"}), 400
+    # Fetch metadata using the fetch_metadata function
+    metadata = fetch_metadata(title)
+    
+    if metadata:
+        return jsonify({"message": "Metadata fetched successfully", "metadata": metadata}), 200
+    else:
+        return jsonify({"error": "No PDFs found for the given title"}), 404
+
+    return jsonify({"metadata": metadata}), 200
 if __name__ == '__main__':
     app.run(debug=True)

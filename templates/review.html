@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Select Images</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* General Body Styling */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f9f9f9;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+h1 {
+    font-size: 2.5em;
+    color: #444;
+}
+
+h2 {
+    font-size: 1.8em;
+    color: #666;
+    margin-top: 40px;
+}
+
+.image-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    margin: 20px 0;
+}
+
+.image-container {
+    display: inline-block;
+    margin: 10px;
+    padding: 10px;
+    background: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    width: 220px;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.image-container:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+input[type="checkbox"] {
+    margin-right: 10px;
+    transform: scale(1.2);
+    accent-color: #4caf50;
+}
+
+button {
+    background-color: #4caf50;
+    color: white;
+    padding: 12px 24px;
+    font-size: 1em;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.back-btn {
+    display: inline-block;
+    margin-top: 20px;
+    color: #4caf50;
+    text-decoration: none;
+    font-size: 1em;
+    padding: 8px 16px;
+    border: 1px solid #4caf50;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.back-btn:hover {
+    background-color: #4caf50;
+    color: white;
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Select Images to Upload</h1>
+        <form action="/upload_selected_images" method="post">
+            {% if image_pages %}
+                <div class="image-section">
+                    <h2>Image Pages</h2>
+                    {% for page_num, images in cropped_images_paths.items() %}
+                        {% for image in images %}
+                            <div class="image-container">
+                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}" alt="Image" style="width: 200px;">
+                                <input type="checkbox" name="selected_images" value="{{ 'uploads/' ~ image }}">select
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if text_image_pages %}
+                <div class="image-section">
+                    <h2>Text Image Pages</h2>
+                    {% for page_num, images in cropped_images_paths.items() %}
+                        {% for image in images %}
+                            <div class="image-container">
+                                <img src="{{ url_for('static', filename=image) }}" alt="Image" style="width: 200px;">
+                                <input type="checkbox" name="selected_images" value="{{ image }}"> Select
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+
+
+            <button type="submit">Upload Selected Images</button>
+        </form>
+
+        <!-- Back to Upload Button -->
+        <a href="/" class="back-btn">Back to Upload</a>
+    </div>
+</body>
+</html>

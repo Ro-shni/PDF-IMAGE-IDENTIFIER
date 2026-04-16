@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Results</title>
+</head>
+<body>
+    <h1>Upload Results</h1>
+    <ul>
+        {% for result in upload_results %}
+            <li>
+                <strong>File URL:</strong> <a href="{{ result.file_url }}">{{ result.file_url }}</a><br>
+                <strong>Description:</strong> {{ result.description }}<br>
+                <strong>Author:</strong> {{ result.author }}<br>
+                <strong>Date:</strong> {{ result.date }}<br>
+                <strong>Metadata:</strong> <pre>{{ result.text_details }}</pre>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
