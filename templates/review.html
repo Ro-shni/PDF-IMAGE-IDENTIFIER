@@ -3,107 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <title>Select Images</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        /* General Body Styling */
-body {
-    font-family: 'Arial', sans-serif;
-    background-color: #f9f9f9;
-    color: #333;
-    margin: 0;
-    padding: 0;
-}
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #f4f7fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
 
-.container {
-    max-width: 960px;
-    margin: 40px auto;
-    padding: 20px;
-    background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    text-align: center;
-}
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 30px;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
 
-h1 {
-    font-size: 2.5em;
-    color: #444;
-}
+        h1 {
+            font-size: 2.2em;
+            color: #0061f2;
+            margin-bottom: 10px;
+        }
 
-h2 {
-    font-size: 1.8em;
-    color: #666;
-    margin-top: 40px;
-}
+        h2 {
+            font-size: 1.4em;
+            color: #444;
+            margin-top: 32px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e6eef8;
+        }
 
-.image-section {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-evenly;
-    margin: 20px 0;
-}
+        .image-section {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 16px;
+            margin: 20px 0 30px;
+        }
 
-.image-container {
-    display: inline-block;
-    margin: 10px;
-    padding: 10px;
-    background: #fdfdfd;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    width: 220px;
-    text-align: center;
-    transition: all 0.3s ease-in-out;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
+        .image-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            background: #fdfdfd;
+            border: 1px solid #e3e8ee;
+            border-radius: 8px;
+            width: 220px;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
 
-.image-container:hover {
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-}
+        .image-container:hover {
+            box-shadow: 0 6px 18px rgba(0, 97, 242, 0.12);
+            transform: translateY(-2px);
+        }
 
-img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 4px;
-    margin-bottom: 10px;
-}
+        .image-container img {
+            max-width: 100%;
+            height: 160px;
+            object-fit: contain;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
 
-input[type="checkbox"] {
-    margin-right: 10px;
-    transform: scale(1.2);
-    accent-color: #4caf50;
-}
+        .image-container label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95em;
+            cursor: pointer;
+        }
 
-button {
-    background-color: #4caf50;
-    color: white;
-    padding: 12px 24px;
-    font-size: 1em;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.3s ease-in-out;
-}
+        input[type="checkbox"] {
+            transform: scale(1.2);
+            accent-color: #0061f2;
+        }
 
-button:hover {
-    background-color: #45a049;
-}
+        .page-tag {
+            font-size: 0.8em;
+            color: #888;
+            margin-bottom: 6px;
+        }
 
-.back-btn {
-    display: inline-block;
-    margin-top: 20px;
-    color: #4caf50;
-    text-decoration: none;
-    font-size: 1em;
-    padding: 8px 16px;
-    border: 1px solid #4caf50;
-    border-radius: 6px;
-    transition: all 0.3s;
-}
+        button {
+            background-color: #0061f2;
+            color: white;
+            padding: 12px 28px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-top: 20px;
+        }
 
-.back-btn:hover {
-    background-color: #4caf50;
-    color: white;
-}
+        button:hover {
+            background-color: #0051c1;
+        }
 
+        .back-btn {
+            display: inline-block;
+            margin-top: 16px;
+            margin-left: 12px;
+            color: #0061f2;
+            text-decoration: none;
+            font-size: 1em;
+            padding: 10px 20px;
+            border: 1px solid #0061f2;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background-color: #0061f2;
+            color: white;
+        }
+
+        .empty {
+            color: #888;
+            font-style: italic;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
@@ -111,13 +139,17 @@ button:hover {
         <h1>Select Images to Upload</h1>
         <form action="/upload_selected_images" method="post">
             {% if image_pages %}
+                <h2>Image Pages</h2>
                 <div class="image-section">
-                    <h2>Image Pages</h2>
-                    {% for page_num, images in cropped_images_paths.items() %}
-                        {% for image in images %}
+                    {% for page_num in image_pages %}
+                        {% for image in cropped_images_paths.get(page_num, []) %}
                             <div class="image-container">
-                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}" alt="Image" style="width: 200px;">
-                                <input type="checkbox" name="selected_images" value="{{ 'uploads/' ~ image }}">select
+                                <span class="page-tag">Page {{ page_num }}</span>
+                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}" alt="Image from page {{ page_num }}">
+                                <label>
+                                    <input type="checkbox" name="selected_images" value="uploads/{{ image }}">
+                                    Select
+                                </label>
                             </div>
                         {% endfor %}
                     {% endfor %}
@@ -125,26 +157,30 @@ button:hover {
             {% endif %}
 
             {% if text_image_pages %}
+                <h2>Image + Text Pages</h2>
                 <div class="image-section">
-                    <h2>Text Image Pages</h2>
-                    {% for page_num, images in cropped_images_paths.items() %}
-                        {% for image in images %}
+                    {% for page_num in text_image_pages %}
+                        {% for image in cropped_images_paths.get(page_num, []) %}
                             <div class="image-container">
-                                <img src="{{ url_for('static', filename=image) }}" alt="Image" style="width: 200px;">
-                                <input type="checkbox" name="selected_images" value="{{ image }}"> Select
+                                <span class="page-tag">Page {{ page_num }}</span>
+                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}" alt="Image from page {{ page_num }}">
+                                <label>
+                                    <input type="checkbox" name="selected_images" value="uploads/{{ image }}">
+                                    Select
+                                </label>
                             </div>
                         {% endfor %}
                     {% endfor %}
                 </div>
             {% endif %}
 
-
+            {% if not image_pages and not text_image_pages %}
+                <p class="empty">No images were extracted from this PDF.</p>
+            {% endif %}
 
             <button type="submit">Upload Selected Images</button>
+            <a href="/" class="back-btn">Back to Upload</a>
         </form>
-
-        <!-- Back to Upload Button -->
-        <a href="/" class="back-btn">Back to Upload</a>
     </div>
 </body>
 </html>

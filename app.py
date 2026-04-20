@@ -327,9 +327,23 @@ def upload_to_commons(image_path, filename, auth_ses=None):
 
         return upload_response.json()
 
+def current_user():
+    """Return the currently authenticated Wikimedia user, or None."""
+    try:
+        return MW_OAUTH.get_current_user(True)
+    except Exception:
+        return None
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    user = current_user()
+
     if request.method == 'POST':
+        if not user:
+            return render_template('index.html', user=None,
+                                   error="Please log in with your Wikimedia account before uploading."), 401
+
         file = request.files.get('file')
         url = request.form.get('url')
 
@@ -338,19 +352,19 @@ def index():
             file.save(file_path)
             image_pages, text_image_pages, cropped_images_paths = process_pdf_and_extract_images(file_path, pdf_url=file_path)
 
-            return render_template('review.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths)
+            return render_template('review.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths, user=user)
 
         elif url:
             try:
                 pdf_data = fetch_pdf_with_user_agent(url)
                 image_pages, text_image_pages, cropped_images_paths = process_pdf_and_extract_images(pdf_data, pdf_url=url)
 
-                return render_template('review.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths)
+                return render_template('review.html', image_pages=image_pages, text_image_pages=text_image_pages, cropped_images_paths=cropped_images_paths, user=user)
 
             except requests.exceptions.RequestException as e:
                 return f"Error fetching the PDF: {e}", 400
 
-    return render_template('index.html')
+    return render_template('index.html', user=user)
 
 @app.route('/upload_selected_images', methods=['POST'])
 def upload_selected_images():
