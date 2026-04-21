@@ -25,6 +25,11 @@ BASE_URL = app.config['OAUTH_MWURI']
 CONSUMER_KEY = app.config['CONSUMER_KEY']
 CONSUMER_SECRET = app.config['CONSUMER_SECRET']
 
+# Wikimedia requires a proper User-Agent with contact info on every API call.
+# See https://meta.wikimedia.org/wiki/User-Agent_policy — requests without one
+# are rejected with HTTP 403.
+WIKI_USER_AGENT = 'pdf-image-identifier/1.0 (nekkanti.roshni@meesho.com) Python-requests'
+
 # Register blueprint to app
 MW_OAUTH = MWOAuth(
     base_url=BASE_URL,
@@ -245,7 +250,12 @@ def fetch_metadata(title):
         "iiprop": "timestamp|user|comment|url|metadata",
     }
 
-    response = requests.get(url, params=params, verify=True)
+    response = requests.get(
+        url,
+        params=params,
+        headers={'User-Agent': WIKI_USER_AGENT},
+        verify=True,
+    )
     data = response.json()
 
     pages = data.get("query", {}).get("pages", {})
@@ -265,19 +275,41 @@ def upload_to_commons(image_path, filename, auth_ses=None):
     """Uploads an image to Wikimedia Commons with correct metadata."""
     if auth_ses is not None:
         endpoint_url = "https://commons.wikimedia.org/w/api.php"
+        request_headers = {'User-Agent': WIKI_USER_AGENT}
 
         # Step 1: Get CSRF token
-        token_response = requests.get(endpoint_url, params={
-            'action': 'query',
-            'meta': 'tokens',
-            'format': 'json'
-        }, auth=auth_ses, verify=True)
+        token_response = requests.get(
+            endpoint_url,
+            params={
+                'action': 'query',
+                'meta': 'tokens',
+                'type': 'csrf',
+                'format': 'json',
+            },
+            headers=request_headers,
+            auth=auth_ses,
+            verify=True,
+        )
 
         if token_response.status_code != 200:
-            return f"Error retrieving token: {token_response.status_code} - {token_response.text}"
+            # Include response body so future failures are diagnosable instead
+            # of surfacing a bare status code.
+            body_snippet = token_response.text[:200] if token_response.text else ""
+            return {
+                "filename": filename,
+                "status": "failed",
+                "error": f"Error retrieving token: {token_response.status_code} {body_snippet}",
+            }
 
         token_data = token_response.json()
-        csrftoken = token_data['query']['tokens']['csrftoken']
+        try:
+            csrftoken = token_data['query']['tokens']['csrftoken']
+        except (KeyError, TypeError):
+            return {
+                "filename": filename,
+                "status": "failed",
+                "error": f"Malformed token response: {token_data}",
+            }
 
         # Step 2: Clean filename (fix illegal characters)
         cleaned_filename = urllib.parse.unquote(filename)
@@ -319,13 +351,67 @@ def upload_to_commons(image_path, filename, auth_ses=None):
             "ignorewarnings": 1,
         }
 
-        file = {'file': open(image_path, 'rb')}
-        upload_response = requests.post(endpoint_url, data=upload_params, files=file, auth=auth_ses, verify=True)
+        with open(image_path, 'rb') as fh:
+            file = {'file': fh}
+            upload_response = requests.post(
+                endpoint_url,
+                data=upload_params,
+                files=file,
+                headers=request_headers,
+                auth=auth_ses,
+                verify=True,
+            )
 
         if upload_response.status_code != 200:
-            return f"Error uploading file: {upload_response.status_code} - {upload_response.text}"
+            body_snippet = upload_response.text[:200] if upload_response.text else ""
+            return {
+                "filename": cleaned_filename,
+                "status": "failed",
+                "error": f"Error uploading file: {upload_response.status_code} {body_snippet}",
+            }
 
-        return upload_response.json()
+        api_response = upload_response.json()
+
+        # Log full response so failures can be diagnosed from the server log
+        # even when the UI only shows a summary.
+        print(f"[upload_to_commons] {cleaned_filename} response: {api_response}")
+
+        # Format response for display
+        if api_response.get("upload", {}).get("result") == "Success":
+            return {
+                "filename": cleaned_filename,
+                "status": "success",
+                "url": api_response.get("upload", {}).get("imageinfo", {}).get("url", ""),
+                "description": description,
+                "author": author,
+                "date": current_date,
+                "message": "Successfully uploaded to Wikimedia Commons!"
+            }
+
+        # MediaWiki reports failures in several shapes; check each in order.
+        top_error = api_response.get("error") or {}
+        upload_block = api_response.get("upload") or {}
+        upload_error = upload_block.get("error") or {}
+        warnings = upload_block.get("warnings") or {}
+        result = upload_block.get("result")
+
+        if top_error.get("info"):
+            error_msg = f"{top_error.get('code', 'error')}: {top_error['info']}"
+        elif isinstance(upload_error, dict) and upload_error.get("info"):
+            error_msg = f"{upload_error.get('code', 'error')}: {upload_error['info']}"
+        elif warnings:
+            # e.g. {"exists": "Foo.png"} or {"duplicate": [...]}
+            error_msg = f"Upload rejected with warnings: {warnings}"
+        elif result:
+            error_msg = f"Upload result: {result} (response: {api_response})"
+        else:
+            error_msg = f"Unknown error. Raw response: {api_response}"
+
+        return {
+            "filename": cleaned_filename,
+            "status": "failed",
+            "error": error_msg,
+        }
 
 def current_user():
     """Return the currently authenticated Wikimedia user, or None."""
@@ -396,6 +482,48 @@ def upload_selected_images():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/apply_crop', methods=['POST'])
+def apply_crop():
+    """Crop the given image to the requested rectangle and overwrite the file on disk."""
+    data = request.get_json(silent=True) or {}
+    image_path = data.get('image_path', '')
+
+    try:
+        x = int(data.get('x', 0))
+        y = int(data.get('y', 0))
+        w = int(data.get('width', 0))
+        h = int(data.get('height', 0))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Invalid crop coordinates"}), 400
+
+    if not image_path or w <= 0 or h <= 0:
+        return jsonify({"success": False, "error": "Invalid crop parameters"}), 400
+
+    # Security: prevent path traversal — only accept the basename.
+    filename = os.path.basename(image_path)
+    full_path = os.path.join(app.root_path, 'static', 'uploads', filename)
+
+    if not os.path.exists(full_path):
+        return jsonify({"success": False, "error": "File not found"}), 404
+
+    img = cv2.imread(full_path)
+    if img is None:
+        return jsonify({"success": False, "error": "Failed to read image"}), 500
+
+    img_h, img_w = img.shape[:2]
+
+    # Clamp crop rectangle to image bounds.
+    x = max(0, min(img_w - 1, x))
+    y = max(0, min(img_h - 1, y))
+    w = max(1, min(img_w - x, w))
+    h = max(1, min(img_h - y, h))
+
+    cropped = img[y:y + h, x:x + w]
+    if not cv2.imwrite(full_path, cropped):
+        return jsonify({"success": False, "error": "Failed to save cropped image"}), 500
+
+    return jsonify({"success": True, "width": int(w), "height": int(h)})
 
 def getUser():
     if MW_OAUTH.get_current_user(True) is not None:

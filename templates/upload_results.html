@@ -3,19 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <title>Upload Results</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Roboto", sans-serif;
+            background: linear-gradient(135deg, #f4f7fa 0%, #e6eef8 100%);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #0061f2;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .result-card {
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #ddd;
+            background: #f9f9f9;
+            transition: all 0.2s ease;
+        }
+
+        .result-card.success {
+            background: #f0fdf4;
+            border-left-color: #2ecc71;
+        }
+
+        .result-card.failed {
+            background: #fef2f2;
+            border-left-color: #e74c3c;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.success::before {
+            content: "✓";
+        }
+
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-badge.failed::before {
+            content: "✗";
+        }
+
+        .filename {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #333;
+        }
+
+        .result-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .detail-row {
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #0061f2;
+            margin-bottom: 2px;
+        }
+
+        .detail-value {
+            color: #555;
+            word-break: break-word;
+        }
+
+        .error-message {
+            color: #c0392b;
+            padding: 12px;
+            background: #fdecea;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        .url-link {
+            color: #0061f2;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .url-link:hover {
+            text-decoration: underline;
+        }
+
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .back-btn {
+            display: inline-block;
+            padding: 12px 28px;
+            background: #0061f2;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #0051c1;
+        }
+
+        .empty {
+            text-align: center;
+            color: #888;
+            padding: 30px;
+            font-style: italic;
+        }
+    </style>
 </head>
 <body>
-    <h1>Upload Results</h1>
-    <ul>
-        {% for result in upload_results %}
-            <li>
-                <strong>File URL:</strong> <a href="{{ result.file_url }}">{{ result.file_url }}</a><br>
-                <strong>Description:</strong> {{ result.description }}<br>
-                <strong>Author:</strong> {{ result.author }}<br>
-                <strong>Date:</strong> {{ result.date }}<br>
-                <strong>Metadata:</strong> <pre>{{ result.text_details }}</pre>
-            </li>
-        {% endfor %}
-    </ul>
+    <div class="container">
+        <h1>Upload Results</h1>
+
+        {% if upload_results %}
+            <div class="results-list">
+                {% for result in upload_results %}
+                    {% if result.get('status') == 'success' %}
+                        <div class="result-card success">
+                            <div class="result-header">
+                                <span class="filename">{{ result.filename }}</span>
+                                <span class="status-badge success">Uploaded Successfully</span>
+                            </div>
+                            <div class="result-details">
+                                <div class="detail-row">
+                                    <div class="detail-label">Author</div>
+                                    <div class="detail-value">{{ result.author }}</div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-label">Upload Date</div>
+                                    <div class="detail-value">{{ result.date }}</div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-label">Description</div>
+                                    <div class="detail-value">{{ result.description }}</div>
+                                </div>
+                            </div>
+                            {% if result.url %}
+                                <div class="detail-row" style="margin-top: 12px;">
+                                    <div class="detail-label">File URL</div>
+                                    <div class="detail-value">
+                                        <a class="url-link" href="{{ result.url }}" target="_blank">{{ result.url }}</a>
+                                    </div>
+                                </div>
+                            {% endif %}
+                    {% else %}
+                        <div class="result-card failed">
+                            <div class="result-header">
+                                <span class="filename">{{ result.filename }}</span>
+                                <span class="status-badge failed">Upload Failed</span>
+                            </div>
+                            <div class="error-message">{{ result.error }}</div>
+                    {% endif %}
+                        </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty">No upload results to display.</div>
+        {% endif %}
+
+        <div class="actions">
+            <a class="back-btn" href="/">Upload More PDFs</a>
+        </div>
+    </div>
 </body>
 </html>

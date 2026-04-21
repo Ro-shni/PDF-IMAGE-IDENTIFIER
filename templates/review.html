@@ -2,12 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Select Images</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>Select & Crop Images</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+        * { box-sizing: border-box; }
+
         body {
             font-family: 'Roboto', Arial, sans-serif;
             background-color: #f4f7fa;
@@ -72,14 +71,45 @@
             border-radius: 4px;
             margin-bottom: 10px;
             background: #f9f9f9;
+            cursor: pointer;
+            transition: opacity 0.2s;
         }
 
-        .image-container label {
+        .image-container img:hover {
+            opacity: 0.8;
+        }
+
+        .image-actions {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            flex-direction: column;
+        }
+
+        .crop-btn {
+            flex: 1;
+            padding: 6px 8px;
+            background: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .crop-btn:hover {
+            background: #e67e22;
+        }
+
+        .select-label {
             display: flex;
             align-items: center;
             gap: 6px;
             font-size: 0.95em;
             cursor: pointer;
+            min-height: 28px;
+            justify-content: center;
         }
 
         input[type="checkbox"] {
@@ -93,33 +123,43 @@
             margin-bottom: 6px;
         }
 
-        button {
-            background-color: #0061f2;
-            color: white;
+        .button-group {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button, .back-btn {
             padding: 12px 28px;
             font-size: 1em;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            transition: background-color 0.2s ease;
-            margin-top: 20px;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            text-decoration: none;
+            display: inline-block;
         }
 
-        button:hover {
+        button {
+            background-color: #0061f2;
+            color: white;
+        }
+
+        button:hover:not(:disabled) {
             background-color: #0051c1;
         }
 
+        button:disabled {
+            background-color: #b8c7da;
+            cursor: not-allowed;
+        }
+
         .back-btn {
-            display: inline-block;
-            margin-top: 16px;
-            margin-left: 12px;
             color: #0061f2;
-            text-decoration: none;
-            font-size: 1em;
-            padding: 10px 20px;
             border: 1px solid #0061f2;
-            border-radius: 6px;
-            transition: all 0.2s;
+            background: transparent;
         }
 
         .back-btn:hover {
@@ -132,12 +172,136 @@
             font-style: italic;
             margin: 20px 0;
         }
+
+        /* Crop Modal */
+        .crop-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .crop-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .crop-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .crop-header {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #0061f2;
+            margin-bottom: 20px;
+        }
+
+        .crop-canvas-wrapper {
+            position: relative;
+            display: inline-block;
+            background: #f9f9f9;
+            border: 2px solid #e3e8ee;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            line-height: 0;
+            user-select: none;
+        }
+
+        #cropCanvas {
+            display: block;
+            max-width: 100%;
+            max-height: 500px;
+        }
+
+        .crop-overlay {
+            position: absolute;
+            box-sizing: border-box;
+            border: 2px dashed #0061f2;
+            background: transparent;
+            cursor: move;
+            /* Darken everything outside the crop box using a huge outer box-shadow
+               clipped by `overflow: hidden` on the wrapper. */
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        .crop-handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #0061f2;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+            z-index: 10;
+        }
+
+        .handle-nw { top: -8px; left: -8px; cursor: nwse-resize; }
+        .handle-n  { top: -8px; left: calc(50% - 7px); cursor: ns-resize; }
+        .handle-ne { top: -8px; right: -8px; cursor: nesw-resize; }
+        .handle-w  { top: calc(50% - 7px); left: -8px; cursor: ew-resize; }
+        .handle-e  { top: calc(50% - 7px); right: -8px; cursor: ew-resize; }
+        .handle-sw { bottom: -8px; left: -8px; cursor: nesw-resize; }
+        .handle-s  { bottom: -8px; left: calc(50% - 7px); cursor: ns-resize; }
+        .handle-se { bottom: -8px; right: -8px; cursor: nwse-resize; }
+
+        .crop-instructions {
+            background: #eaf2ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            color: #0051c1;
+        }
+
+        .crop-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .crop-actions button {
+            padding: 10px 20px;
+            font-size: 0.95rem;
+        }
+
+        .crop-actions .cancel-btn {
+            background: #ddd;
+            color: #333;
+        }
+
+        .crop-actions .cancel-btn:hover {
+            background: #ccc;
+        }
+
+        .crop-actions .apply-btn {
+            background: #2ecc71;
+        }
+
+        .crop-actions .apply-btn:hover {
+            background: #27ae60;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Select Images to Upload</h1>
-        <form action="/upload_selected_images" method="post">
+        <h1>Select & Crop Images</h1>
+        <form action="/upload_selected_images" method="post" id="uploadForm">
             {% if image_pages %}
                 <h2>Image Pages</h2>
                 <div class="image-section">
@@ -145,11 +309,16 @@
                         {% for image in cropped_images_paths.get(page_num, []) %}
                             <div class="image-container">
                                 <span class="page-tag">Page {{ page_num }}</span>
-                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}" alt="Image from page {{ page_num }}">
-                                <label>
-                                    <input type="checkbox" name="selected_images" value="uploads/{{ image }}">
-                                    Select
-                                </label>
+                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}"
+                                     alt="Image from page {{ page_num }}"
+                                     onclick="openCropTool(this, 'uploads/{{ image }}')">
+                                <div class="image-actions">
+                                    <button type="button" class="crop-btn" onclick="openCropTool(document.querySelector('[src=\'' + '{{ url_for('static', filename='uploads/' ~ image) }}' + '\']'), 'uploads/{{ image }}')">✂️ Crop</button>
+                                    <label class="select-label">
+                                        <input type="checkbox" name="selected_images" value="uploads/{{ image }}">
+                                        Select
+                                    </label>
+                                </div>
                             </div>
                         {% endfor %}
                     {% endfor %}
@@ -163,11 +332,16 @@
                         {% for image in cropped_images_paths.get(page_num, []) %}
                             <div class="image-container">
                                 <span class="page-tag">Page {{ page_num }}</span>
-                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}" alt="Image from page {{ page_num }}">
-                                <label>
-                                    <input type="checkbox" name="selected_images" value="uploads/{{ image }}">
-                                    Select
-                                </label>
+                                <img src="{{ url_for('static', filename='uploads/' ~ image) }}"
+                                     alt="Image from page {{ page_num }}"
+                                     onclick="openCropTool(this, 'uploads/{{ image }}')">
+                                <div class="image-actions">
+                                    <button type="button" class="crop-btn" onclick="openCropTool(document.querySelector('[src=\'' + '{{ url_for('static', filename='uploads/' ~ image) }}' + '\']'), 'uploads/{{ image }}')">✂️ Crop</button>
+                                    <label class="select-label">
+                                        <input type="checkbox" name="selected_images" value="uploads/{{ image }}">
+                                        Select
+                                    </label>
+                                </div>
                             </div>
                         {% endfor %}
                     {% endfor %}
@@ -178,9 +352,260 @@
                 <p class="empty">No images were extracted from this PDF.</p>
             {% endif %}
 
-            <button type="submit">Upload Selected Images</button>
-            <a href="/" class="back-btn">Back to Upload</a>
+            <div class="button-group">
+                <button type="submit">📤 Upload Selected Images</button>
+                <a href="/" class="back-btn">← Back to Upload</a>
+            </div>
         </form>
     </div>
+
+    <!-- Crop Modal -->
+    <div id="cropModal" class="crop-modal">
+        <div class="crop-content">
+            <div class="crop-header">Crop Image</div>
+            <div class="crop-instructions">
+                Drag the image or use the blue handles to adjust the crop area, then click "Apply Crop"
+            </div>
+            <div class="crop-canvas-wrapper" id="cropWrapper">
+                <canvas id="cropCanvas"></canvas>
+                <div class="crop-overlay" id="cropOverlay">
+                    <div class="crop-handle handle-nw" data-handle="nw"></div>
+                    <div class="crop-handle handle-n"  data-handle="n"></div>
+                    <div class="crop-handle handle-ne" data-handle="ne"></div>
+                    <div class="crop-handle handle-w"  data-handle="w"></div>
+                    <div class="crop-handle handle-e"  data-handle="e"></div>
+                    <div class="crop-handle handle-sw" data-handle="sw"></div>
+                    <div class="crop-handle handle-s"  data-handle="s"></div>
+                    <div class="crop-handle handle-se" data-handle="se"></div>
+                </div>
+            </div>
+            <div class="crop-actions">
+                <button type="button" class="cancel-btn" onclick="closeCropTool()">Cancel</button>
+                <button type="button" class="apply-btn" onclick="applyCrop()">Apply Crop</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // All crop-box coordinates (x, y, width, height) are in **canvas display pixels**.
+        // We convert to natural image pixels only when sending the crop to the server.
+        const MIN_CROP_SIZE = 20;
+        let currentCropImage = null;
+        let cropState = {
+            x: 0, y: 0, width: 0, height: 0,
+            imgNaturalWidth: 0, imgNaturalHeight: 0,
+            canvasWidth: 0, canvasHeight: 0,
+            dragMode: null, // null | 'move' | 'nw' | 'n' | 'ne' | 'w' | 'e' | 'sw' | 's' | 'se'
+            startMouseX: 0, startMouseY: 0,
+            startBoxX: 0, startBoxY: 0, startBoxW: 0, startBoxH: 0
+        };
+        let handlersInitialized = false;
+
+        function openCropTool(imgElement, imagePath) {
+            currentCropImage = { path: imagePath, element: imgElement };
+            const modal = document.getElementById('cropModal');
+            const canvas = document.getElementById('cropCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const img = new Image();
+            img.onload = function () {
+                // Fit image into a max 800x500 display area, preserving aspect ratio.
+                const maxW = 800, maxH = 500;
+                let cw = img.naturalWidth;
+                let ch = img.naturalHeight;
+                if (cw > maxW) { ch = Math.round(ch * maxW / cw); cw = maxW; }
+                if (ch > maxH) { cw = Math.round(cw * maxH / ch); ch = maxH; }
+
+                canvas.width = cw;
+                canvas.height = ch;
+                ctx.drawImage(img, 0, 0, cw, ch);
+
+                cropState.imgNaturalWidth = img.naturalWidth;
+                cropState.imgNaturalHeight = img.naturalHeight;
+                cropState.canvasWidth = cw;
+                cropState.canvasHeight = ch;
+
+                // Default crop: centered 80% of the image.
+                cropState.width = Math.round(cw * 0.8);
+                cropState.height = Math.round(ch * 0.8);
+                cropState.x = Math.round((cw - cropState.width) / 2);
+                cropState.y = Math.round((ch - cropState.height) / 2);
+
+                updateOverlay();
+                if (!handlersInitialized) {
+                    initCropHandlers();
+                    handlersInitialized = true;
+                }
+            };
+            // Force a fresh load so cropped images reflect server-side changes.
+            img.src = imgElement.src.split('?')[0] + '?t=' + Date.now();
+            modal.classList.add('active');
+        }
+
+        function updateOverlay() {
+            const overlay = document.getElementById('cropOverlay');
+            overlay.style.display = 'block';
+            overlay.style.left = cropState.x + 'px';
+            overlay.style.top = cropState.y + 'px';
+            overlay.style.width = cropState.width + 'px';
+            overlay.style.height = cropState.height + 'px';
+        }
+
+        function initCropHandlers() {
+            const overlay = document.getElementById('cropOverlay');
+
+            overlay.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('crop-handle')) return; // handled below
+                startDrag(e, 'move');
+            });
+
+            overlay.querySelectorAll('.crop-handle').forEach((handle) => {
+                handle.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    startDrag(e, handle.dataset.handle);
+                });
+            });
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+
+        function startDrag(e, mode) {
+            cropState.dragMode = mode;
+            cropState.startMouseX = e.clientX;
+            cropState.startMouseY = e.clientY;
+            cropState.startBoxX = cropState.x;
+            cropState.startBoxY = cropState.y;
+            cropState.startBoxW = cropState.width;
+            cropState.startBoxH = cropState.height;
+            e.preventDefault();
+        }
+
+        function onMouseMove(e) {
+            if (!cropState.dragMode) return;
+
+            const dx = e.clientX - cropState.startMouseX;
+            const dy = e.clientY - cropState.startMouseY;
+            const maxX = cropState.canvasWidth;
+            const maxY = cropState.canvasHeight;
+
+            let nx = cropState.startBoxX;
+            let ny = cropState.startBoxY;
+            let nw = cropState.startBoxW;
+            let nh = cropState.startBoxH;
+
+            const startRight = cropState.startBoxX + cropState.startBoxW;
+            const startBottom = cropState.startBoxY + cropState.startBoxH;
+
+            switch (cropState.dragMode) {
+                case 'move':
+                    nx = clamp(cropState.startBoxX + dx, 0, maxX - nw);
+                    ny = clamp(cropState.startBoxY + dy, 0, maxY - nh);
+                    break;
+                case 'nw':
+                    nx = clamp(cropState.startBoxX + dx, 0, startRight - MIN_CROP_SIZE);
+                    ny = clamp(cropState.startBoxY + dy, 0, startBottom - MIN_CROP_SIZE);
+                    nw = startRight - nx;
+                    nh = startBottom - ny;
+                    break;
+                case 'n':
+                    ny = clamp(cropState.startBoxY + dy, 0, startBottom - MIN_CROP_SIZE);
+                    nh = startBottom - ny;
+                    break;
+                case 'ne':
+                    ny = clamp(cropState.startBoxY + dy, 0, startBottom - MIN_CROP_SIZE);
+                    nh = startBottom - ny;
+                    nw = clamp(cropState.startBoxW + dx, MIN_CROP_SIZE, maxX - cropState.startBoxX);
+                    break;
+                case 'w':
+                    nx = clamp(cropState.startBoxX + dx, 0, startRight - MIN_CROP_SIZE);
+                    nw = startRight - nx;
+                    break;
+                case 'e':
+                    nw = clamp(cropState.startBoxW + dx, MIN_CROP_SIZE, maxX - cropState.startBoxX);
+                    break;
+                case 'sw':
+                    nx = clamp(cropState.startBoxX + dx, 0, startRight - MIN_CROP_SIZE);
+                    nw = startRight - nx;
+                    nh = clamp(cropState.startBoxH + dy, MIN_CROP_SIZE, maxY - cropState.startBoxY);
+                    break;
+                case 's':
+                    nh = clamp(cropState.startBoxH + dy, MIN_CROP_SIZE, maxY - cropState.startBoxY);
+                    break;
+                case 'se':
+                    nw = clamp(cropState.startBoxW + dx, MIN_CROP_SIZE, maxX - cropState.startBoxX);
+                    nh = clamp(cropState.startBoxH + dy, MIN_CROP_SIZE, maxY - cropState.startBoxY);
+                    break;
+            }
+
+            cropState.x = nx;
+            cropState.y = ny;
+            cropState.width = nw;
+            cropState.height = nh;
+            updateOverlay();
+        }
+
+        function onMouseUp() {
+            cropState.dragMode = null;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        async function applyCrop() {
+            if (!currentCropImage) return;
+
+            // Map display-pixel crop rectangle to natural-pixel coords for the server.
+            const scaleX = cropState.imgNaturalWidth / cropState.canvasWidth;
+            const scaleY = cropState.imgNaturalHeight / cropState.canvasHeight;
+            const payload = {
+                image_path: currentCropImage.path,
+                x: Math.round(cropState.x * scaleX),
+                y: Math.round(cropState.y * scaleY),
+                width: Math.round(cropState.width * scaleX),
+                height: Math.round(cropState.height * scaleY),
+            };
+
+            const applyBtn = document.querySelector('.apply-btn');
+            if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Cropping…'; }
+
+            try {
+                const resp = await fetch('/apply_crop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json();
+
+                if (!resp.ok || !data.success) {
+                    alert('Crop failed: ' + (data.error || resp.statusText));
+                    return;
+                }
+
+                // Cache-bust the thumbnail so the user sees the cropped result.
+                const baseSrc = currentCropImage.element.src.split('?')[0];
+                currentCropImage.element.src = baseSrc + '?t=' + Date.now();
+
+                // Auto-select the image for upload after a successful crop.
+                const input = document.querySelector(
+                    `input[value="${currentCropImage.path}"]`
+                );
+                if (input) input.checked = true;
+
+                closeCropTool();
+            } catch (err) {
+                alert('Crop failed: ' + err.message);
+            } finally {
+                if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = 'Apply Crop'; }
+            }
+        }
+
+        function closeCropTool() {
+            document.getElementById('cropModal').classList.remove('active');
+            document.getElementById('cropOverlay').style.display = 'none';
+            cropState.dragMode = null;
+        }
+    </script>
 </body>
 </html>
