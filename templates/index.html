@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PicStalker - Upload PDF</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+        body {
+            font-family: "Roboto", sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f4f7fa 0%, #e6eef8 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 22px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #e6eef8;
+            z-index: 10;
+        }
+
+        .topbar .user-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #eaf2ff;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            color: #0061f2;
+            font-weight: 500;
+        }
+
+        .topbar .user-pill::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ecc71;
+        }
+
+        .topbar .auth-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .topbar .auth-btn.login {
+            background-color: #0061f2;
+            color: white;
+        }
+
+        .topbar .auth-btn.login:hover {
+            background-color: #0051c1;
+        }
+
+        .topbar .auth-btn.logout {
+            background-color: transparent;
+            color: #555;
+            border-color: #d0d7de;
+        }
+
+        .topbar .auth-btn.logout:hover {
+            background-color: #f4f7fa;
+            color: #c0392b;
+            border-color: #c0392b;
+        }
+
+        .container {
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 560px;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: #0061f2;
+        }
+
+        .subtitle {
+            color: #777;
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 18px;
+            font-size: 0.92rem;
+            text-align: left;
+        }
+
+        .alert.error {
+            background: #fdecea;
+            color: #c0392b;
+            border: 1px solid #f5c6c0;
+        }
+
+        .alert.warning {
+            background: #fff8e1;
+            color: #8a6d00;
+            border: 1px solid #f0e0a0;
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            font-size: 0.95rem;
+            color: #555;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 2px solid #e3e8ee;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+            font-family: inherit;
+        }
+
+        input[type="file"]:hover,
+        input[type="text"]:hover,
+        input[type="file"]:focus,
+        input[type="text"]:focus {
+            border-color: #0061f2;
+            outline: none;
+        }
+
+        .divider {
+            margin: 18px 0 6px;
+            color: #aaa;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button {
+            background-color: #0061f2;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            margin-top: 24px;
+            font-family: inherit;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #0051c1;
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            background-color: #b8c7da;
+            cursor: not-allowed;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 56px;
+            height: 56px;
+            border: 4px solid rgba(0, 97, 242, 0.15);
+            border-top-color: #0061f2;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            font-size: 1rem;
+            color: #0061f2;
+            font-weight: 500;
+        }
+
+        .loading-subtext {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: #777;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        {% if user %}
+            <span class="user-pill">{{ user }}</span>
+            <a class="auth-btn logout" href="/logout">Log out</a>
+        {% else %}
+            <a class="auth-btn login" href="/login">Log in with Wikimedia</a>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        <h1>PicStalker</h1>
+        <p class="subtitle">Extract images from any PDF — upload a file or paste a URL.</p>
+
+        {% if error %}
+            <div class="alert error">{{ error }}</div>
+        {% endif %}
+
+        {% if not user %}
+            <div class="alert warning">
+                You must <a href="/login">log in with your Wikimedia account</a> before uploading.
+            </div>
+        {% endif %}
+
+        <form id="uploadForm" action="/" method="post" enctype="multipart/form-data">
+            <label for="file">Select PDF file</label>
+            <input type="file" name="file" id="file" accept=".pdf" {% if not user %}disabled{% endif %}>
+
+            <div class="divider">or</div>
+
+            <label for="url">Enter PDF URL</label>
+            <input type="text" name="url" placeholder="https://example.com/file.pdf" id="url" {% if not user %}disabled{% endif %}>
+
+            <button type="submit" id="submitBtn" {% if not user %}disabled{% endif %}>
+                {% if user %}Upload &amp; Extract{% else %}Log in to Upload{% endif %}
+            </button>
+        </form>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Processing your PDF</div>
+        <div class="loading-subtext">Extracting images — this may take a moment.</div>
+    </div>
+
+    <script>
+        const form = document.getElementById("uploadForm");
+        if (form) {
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+
+                const fileInput = document.getElementById("file");
+                const urlInput = document.getElementById("url");
+                if (!fileInput.files.length && !urlInput.value.trim()) {
+                    alert("Please select a PDF file or enter a URL.");
+                    return;
+                }
+
+                const overlay = document.getElementById("loadingOverlay");
+                const submitBtn = document.getElementById("submitBtn");
+                overlay.classList.add("active");
+                submitBtn.disabled = true;
+
+                const formData = new FormData(this);
+
+                fetch("/", {
+                    method: "POST",
+                    body: formData,
+                })
+                .then(response => response.text())
+                .then(data => {
+                    overlay.classList.remove("active");
+                    submitBtn.disabled = false;
+                    document.open();
+                    document.write(data);
+                    document.close();
+                })
+                .catch(error => {
+                    overlay.classList.remove("active");
+                    submitBtn.disabled = false;
+                    console.error("Error:", error);
+                    alert("Something went wrong. Please try again.");
+                });
+            });
+        }
+    </script>
+</body>
+</html>
